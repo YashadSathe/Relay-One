@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 15% 12%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 15%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 15%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 252 83% 74%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 25%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 5% 20%;
+    --muted-foreground: 240 5% 75%;
+
+    --accent: 252 83% 74%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5% 25%;
+    --input: 240 5% 25%;
+    --ring: 250 83% 74%;
+
+    /* Sidebar colors */
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground); 
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+
+    --radius: 0.75rem;
+  }
+
+  html, body {
+    @apply bg-background text-foreground min-h-screen overflow-x-hidden font-sans;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply backdrop-blur-xl bg-black/30 border border-white/10 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.3)];
+  }
+
+  .animated-gradient {
+    background: linear-gradient(
+      135deg,
+      rgba(30, 30, 40, 1) 0%,
+      rgba(50, 50, 65, 1) 50%,
+      rgba(70, 70, 85, 1) 100%
+    );
+    background-size: 400% 400%;
+    @apply animate-gradient-flow;
+  }
+
+  .grid-background {
+    background-size: 50px 50px;
+    background-image: 
+      linear-gradient(to right, rgba(155, 135, 245, 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(155, 135, 245, 0.1) 1px, transparent 1px);
+  }
+
+  .glow-effect {
+    box-shadow: 0 0 15px 2px rgba(155, 135, 245, 0.5);
+    transition: all 0.3s ease;
+  }
+
+  .glow-effect:hover {
+    box-shadow: 0 0 25px 5px rgba(155, 135, 245, 0.7);
+  }
+
+  .input-glow:focus {
+    @apply border-primary/50 ring-2 ring-primary/20 transition-all duration-300;
+  }
+  
+  /* Log item subtle glow effects */
+  .log-glow {
+    box-shadow: 0 0 8px 1px rgba(155, 135, 245, 0.2);
+    transition: all 0.3s ease;
+  }
+  
+  .log-glow:hover {
+    box-shadow: 0 0 12px 2px rgba(155, 135, 245, 0.3);
+  }
+}

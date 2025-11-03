@@ -1,0 +1,172 @@
+# Project Architecture & Documentation
+
+## Overview
+This project is a backend service for AI-powered content generation, primarily focused on creating and evaluating LinkedIn posts based on a personal brand brief. It is built using Flask (Python) and integrates with OpenAI, Notion, and Zapier APIs. The backend is designed to serve a React frontend and expose RESTful API endpoints for content generation, topic management, and sentiment analysis.
+
+---
+
+## Directory Structure
+
+```
+backend/
+│
+├── app.py                # Main Flask application entry point
+├── run.py                # Script to run the Flask server
+├── requirements.txt       # Python dependencies
+├── .env                  # Environment variables (API keys, config)
+│
+├── api/                  # API route definitions
+│   ├── __init__.py
+│   └── routes.py         # All Flask API endpoints
+│
+├── linkedin_ai/          # LinkedIn AI content generation module
+│   ├── __init__.py
+│   ├── linkedin_ai.py    # Core logic for post generation, evaluation, and rewriting
+│   └── data/
+│       ├── brand_brief.txt      # Personal brand brief (used for prompt context)
+│       └── scored_topics.txt    # Topics with trend, sentiment, and GPT scores
+│
+├── static/               # (Reserved for static files, if needed)
+├── templates/            # (Reserved for HTML templates, if needed)
+└── __pycache__/          # Python bytecode cache
+```
+
+---
+
+## Main Components
+
+### 1. Flask Application (`app.py`, `run.py`)
+- Initializes the Flask app, configures CORS, loads environment variables.
+- Serves the React frontend (from `../dist`) and exposes API endpoints.
+- Health check endpoint for monitoring.
+
+### 2. API Layer (`api/routes.py`)
+- Defines all RESTful endpoints for:
+  - Fetching and managing topics
+  - Sentiment analysis
+  - Running the LinkedIn AI pipeline (manual and auto modes)
+  - Scraping Google Trends and LinkedIn (placeholders for future expansion)
+- Integrates with the LinkedIn AI module for content generation.
+- Uses background threads for long-running tasks to keep API responsive.
+
+### 3. LinkedIn AI Module (`linkedin_ai/linkedin_ai.py`)
+- Handles the full pipeline for generating, evaluating, and rewriting LinkedIn posts:
+  - Loads brand brief and scored topics
+  - Generates posts using OpenAI GPT models
+  - Evaluates posts for clarity, tone, and relevance
+  - Optionally rewrites posts based on feedback
+  - Sends final posts to Zapier (for distribution) and Notion (for record-keeping)
+- Highly modular, with clear separation of steps (generation, evaluation, rewrite, save).
+
+### 4. Data Files (`linkedin_ai/data/`)
+- `brand_brief.txt`: Contains the personal brand's mission, vision, tone, and key themes. Used as context for AI prompts.
+- `scored_topics.txt`: List of topics with trend, sentiment, and GPT scores. Used to select the best topics for content generation.
+
+### 5. Configuration (`.env`)
+- Stores sensitive information and configuration such as API keys, tokens, and webhook URLs.
+
+### 6. Requirements (`requirements.txt`)
+- Lists all Python dependencies, including Flask, OpenAI, Notion, and various NLP libraries.
+
+---
+
+## Data Flow & Pipeline
+
+1. **Topic Selection**
+   - Topics are loaded from `scored_topics.txt` or provided manually via API.
+2. **Content Generation**
+   - The AI module generates a LinkedIn post using the brand brief and selected topic.
+3. **Evaluation**
+   - The generated post is evaluated for clarity, tone, and relevance using another AI prompt.
+4. **Rewrite (if needed)**
+   - If the post score is low, it is rewritten up to 3 times for improvement.
+5. **Distribution & Storage**
+   - Final post is sent to Zapier (for scheduling/publishing) and saved to Notion (for record-keeping).
+
+---
+
+## Text Flow (Detailed Request Lifecycle)
+
+### Example: Generating a LinkedIn Post via API
+
+1. **Frontend Request**
+   - The user (or frontend) sends a POST request to `/api/generate` with a topic in the request body.
+
+2. **API Layer (`api/routes.py`)**
+   - The `/api/generate` endpoint receives the request.
+   - It validates the input and starts a background thread to process the request (so the API responds quickly).
+   - The thread calls `run_linkedin_pipeline(manual_topic=topic)` from `linkedin_ai/linkedin_ai.py`.
+
+3. **LinkedIn AI Pipeline (`linkedin_ai/linkedin_ai.py`)**
+   - Loads the brand brief from `linkedin_ai/data/brand_brief.txt`.
+   - Loads the topic (from the request or from `scored_topics.txt`).
+   - Calls `generate_post()` to create a draft LinkedIn post using OpenAI.
+   - Calls `evaluate_post()` to get a score and feedback for the draft.
+   - If the score is below threshold, calls `rewrite_post()` (up to 3 times) to improve the post.
+   - The final post, score, and feedback are collected.
+
+4. **Distribution & Storage**
+   - The final post is sent to Zapier via webhook for distribution (e.g., Buffer, social media scheduling).
+   - The post, topic, score, and feedback are saved to Notion for record-keeping.
+
+5. **API Response**
+   - The API immediately responds to the frontend that processing has started (actual post generation is async).
+   - The frontend can notify the user that their request is being processed.
+
+### Other Flows
+- **Auto Pipeline**: `/api/run-auto` triggers the same pipeline for multiple topics (from `scored_topics.txt`).
+- **Sentiment Analysis**: `/api/sentiment` endpoint analyzes text using a sentiment analysis module (future expansion).
+- **Topic Fetching**: `/api/topics/fetch` and `/api/topics` manage topic lists (future expansion).
+
+---
+
+## API Endpoints (Key Examples)
+
+- `GET /api/health` — Health check
+- `POST /api/generate` — Generate LinkedIn post for a given topic
+- `POST /api/run-auto` — Run the full pipeline automatically for top topics
+- `GET /api/topics` — Get list of topics
+- `POST /api/topics/fetch` — Fetch new topics (future expansion)
+- `POST /api/sentiment` — Analyze sentiment of provided text
+
+---
+
+## Extensibility & Future Expansion
+- The API layer is designed for easy addition of new endpoints (e.g., for new social platforms, analytics, or admin tools).
+- The LinkedIn AI module can be extended to support other content types, platforms, or more advanced evaluation criteria.
+- Data files and environment variables make it easy to update brand context and configuration without code changes.
+
+---
+
+## Security & Best Practices
+- Sensitive keys and tokens are stored in `.env` and loaded via `python-dotenv`.
+- CORS is enabled for safe cross-origin requests.
+- Long-running tasks are executed in background threads to keep the API responsive.
+
+---
+
+## Dependencies
+- Flask, Flask-CORS, python-dotenv
+- OpenAI, requests
+- Notion API (via requests)
+- NLP & utility libraries: feedparser, beautifulsoup4, vaderSentiment, thefuzz, etc.
+
+---
+
+## Author & Branding
+- The brand brief and content strategy are tailored for "Suryadev Singh Rathore" (Dev Rathore), focusing on authenticity, leadership, and empowerment for founders and professionals.
+
+---
+
+## How to Run
+1. Install dependencies: `pip install -r requirements.txt`
+2. Set up `.env` with your API keys and config.
+3. Start the backend: `python run.py`
+4. Access the API at `http://localhost:5000/api`
+
+---
+
+## Notes
+- The backend is designed to be paired with a React frontend (served from `../dist`).
+- Some API endpoints reference placeholder modules for future expansion (e.g., scraping, advanced analytics).
+- All AI logic is modular and can be adapted for other brands or platforms.
