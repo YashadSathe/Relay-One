@@ -1,42 +1,31 @@
 
 import { useState } from "react";
-import { Outlet, useLocation, Link } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  FileText, 
-  CalendarClock, 
-  Logs, 
-  Link2, 
-  LogOut,
-  Settings
-} from "lucide-react";
+import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
+import { LayoutDashboard, FileText, CalendarClock, Logs, Link2,LogOut,Settings} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import Footer from "./Footer";
 
 const DashboardLayout = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    toast({
-      title: "Logging out",
-      description: "You have been logged out successfully.",
-    });
-    // Navigate to login page
-    window.location.href = "/";
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Logout failed",
+        description: "There was an error logging out. Please try again.",
+      });
+    }
   };
 
   const navigationItems = [
@@ -76,6 +65,11 @@ const DashboardLayout = () => {
       icon: <Settings className="mr-2" />,
     },
   ];
+
+  const getUserInitials = () => {
+  if (!user) return "U";
+  return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || "U";
+  };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -120,7 +114,7 @@ const DashboardLayout = () => {
             </div>
             <div className="flex items-center gap-2">
               <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center">
-                <span className="text-xs font-medium">U</span>
+                <span className="text-xs font-medium">{getUserInitials()}</span>
               </div>
               <Button 
                 variant="ghost" 

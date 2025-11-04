@@ -1,20 +1,23 @@
-
 import { useState } from "react";
-import { useNavigate , Link} from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { authService, SignupData } from "@/services/authService";
 
-const Login = () => {
+const Signup = () => {
   const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
+
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const {login} = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -26,39 +29,69 @@ const Login = () => {
     }));
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+    const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       // Validation
-      if (!formData.email || !formData.password) {
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
         toast({
           variant: "destructive",
-          title: "Login failed",
+          title: "Signup failed",
           description: "Please fill in all fields.",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      if (formData.password !== formData.confirmPassword) {
+        toast({
+          variant: "destructive",
+          title: "Signup failed",
+          description: "Passwords do not match.",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (formData.password.length < 8) {
+        toast({
+          variant: "destructive",
+          title: "Signup failed",
+          description: "Password must be at least 8 characters.",
         });
         setIsLoading(false);
         return;
       }
 
       // API call
-      await login(formData.email, formData.password);
+      const signupData: SignupData = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+      };
+
+      const response = await authService.signup(signupData);
+      
+      // Store tokens
+      authService.setTokens(response.access_token, response.refresh_token);
 
       toast({
-        title: "Welcome to Relay One!",
-        description: "Login successful"
-      })
+        title: "Welcome to RelayOne",
+        description: "Account created successfully. Redirecting to dashboard.",
+      });
       
       // Redirect to dashboard
       navigate("/dashboard");
 
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('Signup error:', error);
       toast({
         variant: "destructive",
-        title: "Login failed",
-        description: error.message || "Invalid email or password. Please try again.",
+        title: "Signup failed",
+        description: error.message || "An error occurred during signup. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -83,11 +116,41 @@ const Login = () => {
           <p className="text-muted-foreground mt-2">Intelligence in motion.</p>
         </div>
 
-        {/* Login form card */}
+        {/* Signup form card */}
         <div className="glass-card p-8 rounded-2xl animate-fade-in" style={{ animationDelay: "200ms" }}>
-          <h2 className="text-2xl font-semibold mb-6">Log in to your account</h2>
+          <h2 className="text-2xl font-semibold mb-6">Create your account</h2>
           
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleSignup} className="space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="firstName" className="text-sm font-medium opacity-80">
+                First Name
+              </label>
+              <Input
+                id="firstName"
+                type="text"
+                placeholder="Enter your first name"
+                value={formData.firstName}
+                onChange={handleChange}
+                className="bg-secondary/40 border-secondary input-glow h-11"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="lastName" className="text-sm font-medium opacity-80">
+                Last Name
+              </label>
+              <Input
+                id="lastName"
+                type="text"
+                placeholder="Enter your last name"
+                value={formData.lastName}
+                onChange={handleChange}
+                className="bg-secondary/40 border-secondary input-glow h-11"
+                disabled={isLoading}
+              />
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium opacity-80">
                 Email
@@ -113,7 +176,7 @@ const Login = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   value={formData.password}
-                  onChange = {handleChange}
+                  onChange={handleChange}
                   className="bg-secondary/40 border-secondary input-glow h-11"
                   disabled={isLoading}
                 />
@@ -127,6 +190,30 @@ const Login = () => {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="confirmPassword" className="text-sm font-medium opacity-80">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm your password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="bg-secondary/40 border-secondary input-glow h-11"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition"
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
             <div className="pt-2">
               <Button
                 type="submit"
@@ -136,21 +223,21 @@ const Login = () => {
                 {isLoading ? (
                   <div className="h-5 w-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
                 ) : (
-                  "Log in to RelayOne"
+                  "Create Account"
                 )}
               </Button>
             </div>
 
-            <div>
+            <div className="text-center text-muted-foreground text-sm !mt-4">
               <p>
-                Don't have an account?{" "}
-                <Link to="/signup" className="font-medium text-primary hover:underline">
-                  Sign up
+                Already have an account?{" "}
+                <Link to="/" className="font-medium text-primary hover:underline">
+                  Log in
                 </Link>
               </p>
             </div>
 
-            <div className="text-center text-muted-foreground text-sm mt-6">
+            <div className="text-center text-muted-foreground text-sm !mt-6">
               <p>Built for founders, creators, and AI-first brands.</p>
             </div>
           </form>
@@ -159,5 +246,4 @@ const Login = () => {
     </div>
   );
 };
-
-export default Login;
+export default Signup;

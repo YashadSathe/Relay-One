@@ -71,7 +71,7 @@ def save_posts_to_storage(result):
         logging.error(f"Failed to save story to storage {e}")
         return None
 
-async def run_pipeline(user_id: str, manual_topic: Optional[str] = None):
+async def run_pipeline(user_id: str, brand_brief: str, manual_topic: Optional[str] = None):
     try:
         brand_brief_content = brand_brief_service.get_brand_brief(user_id, brief_type)
         if not brand_brief_content:
