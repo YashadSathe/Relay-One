@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import bcrypt
 
+
 Base = declarative_base()
 
 def generate_uuid():

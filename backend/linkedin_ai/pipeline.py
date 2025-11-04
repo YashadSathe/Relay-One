@@ -1,11 +1,14 @@
+from asyncio.log import logger
 import os
 import asyncio
 import logging
 import json
+from pickle import PicklingError
 import uuid
 from typing import Optional
-from dotenv import load_dotenv
 from datetime import datetime
+from database import db_manager
+from models import User
 from brand_brief_service import brand_brief_service
 from .topic_generator import get_topic
 from .post_generator import generate_post
@@ -17,15 +20,14 @@ BASE_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(BASE_DIR, "data")
 output_path = os.path.join(DATA_DIR, "final_output.txt")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
-
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 MAX_LOOPS = 3
 MIN_SCORE = 7
+
+class PipelineError(Exception):
+    """Custom exception for pipeline-related errors"""
+    pass
 
 def save_posts_to_storage(result):
     try:
@@ -71,31 +73,43 @@ def save_posts_to_storage(result):
         logging.error(f"Failed to save story to storage {e}")
         return None
 
-async def run_pipeline(user_id: str, brand_brief: str, manual_topic: Optional[str] = None):
+async def run_pipeline(user_id: str, manual_topic: Optional[str] = None, brief_type: str = "active"):
     try:
-        brand_brief_content = brand_brief_service.get_brand_brief(user_id, brief_type)
+        if brief_type == "active":
+            with db_manager.get_session() as session:
+                user = session.query(User).filter(User.id == user_id).first()
+                if not user:
+                    raise PipelineError("User not found")
+                
+                brief_type = user.active_brand_brief
+                brand_brief_content = user.get_active_brand_brief()
+
+        else:
+            # get specific brief
+            brand_brief_content = brand_brief_service.get_brand_brief(user_id, brief_type)
+
         if not brand_brief_content:
             raise PipelineError(f"Please create your {brief_type} brand brief first")
-            
-        logging.info(f"Using {brief_type} brand brief for pipeline")
+        
+        logger.info(f"Using {brief_type} brand brief for user {user_id}")
 
-        topic = await get_topic(brand_brief_content, manual_topic)
+        topic = await get_topic(brand_brief_content, manual_topic, brief_type)
         logging.info(f"Topic generated: {topic}")
 
-        post_data = await generate_post(topic, brand_brief_content)
+        post_data = await generate_post(topic, brand_brief_content, brief_type)
         original_post = post_data["post"]
         post = post_data["post"]
         logging.info(f"Post generated: {post[:60]}...")
 
-        score, feedback, reasoning = await evaluate_post(post, brand_brief_content, topic)
+        score, feedback, reasoning = await evaluate_post(post, brand_brief_content, topic, brief_type)
         logging.info(f"Initial evaluation score: {score}, feedback: {feedback}, topic: {topic}")
 
         loops = 0
         while score < MIN_SCORE and loops < MAX_LOOPS:
             logging.info(f"Rewriting post, loop {loops+1}")
-            post = await rewrite_post(post, feedback, topic, brand_brief_content)
+            post = await rewrite_post(post, feedback, topic, brand_brief_content, brief_type)
             logging.info(f"Rewritten post: {post[:60]}...")
-            score, feedback, reasoning = await evaluate_post(post, brand_brief_content, topic)
+            score, feedback, reasoning = await evaluate_post(post, brand_brief_content, topic, brief_type)
             logging.info(f"Re-evaluation score: {score}, feedback: {feedback}")
             loops += 1
 
@@ -103,27 +117,14 @@ async def run_pipeline(user_id: str, brand_brief: str, manual_topic: Optional[st
             "topic": topic,
             "original_post": original_post,
             "final_post": post,
+            "brief_type": brief_type,
             "score": score,
             "feedback": feedback,
             "reasoning": reasoning,
-            "loops": loops
+            "loops": loops,
         }
 
         post_id = save_posts_to_storage(result)
-        #For inspection
-        try:
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write("LinkedIn AI Pipeline Output\n")
-                f.write("=" * 40 + "\n")
-                f.write(f"Topic: {result['topic']}\n")
-                f.write(f"Score: {result['score']}/10\n")
-                f.write(f"Feedback: {result['feedback']}\n")
-                f.write(f"Reasoning: {result['reasoning']}\n")
-                f.write(f"Loops: {result['loops']}\n\n")
-                f.write("📝 Final Post:\n")
-                f.write(result['final_post'] + "\n")
-        except Exception as e:
-            logging.error(f"Failed to write output file: {e}")
 
         final_post = result["final_post"]
 
