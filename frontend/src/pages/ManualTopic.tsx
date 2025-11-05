@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
+import { authFetch } from "@/lib/api";
 
 interface TopicSubmission {
   id: string;
@@ -21,26 +22,27 @@ const ManualTopic = () => {
   
   {/* Fetch functiom */}
   const fetchTopics = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/manual-topics');
-      if (!response.ok) {
-        throw new Error ('Failed to fetch topics')
-      }
-      const topics: TopicSubmission[] = await response.json();
-      setRecentTopics(topics);
+  setIsLoading(true);
+  try {
+    const response = await authFetch('/api/manual-topics'); 
+    if (!response.ok) {
+      throw new Error ('Failed to fetch topics')
     }
-    catch (error) {
-      toast({
-        title: "Error",
-        description: "Could not load recent submissions.",
-        variant: "destructive",
-      });
-    }
-    finally {
-      setIsLoading(false);
-    }
-  };
+
+    const data = await response.json();
+    setRecentTopics(data.topics);
+  }
+  catch (error) {
+    toast({
+      title: "Error",
+      description: "Could not load recent submissions.",
+      variant: "destructive",
+    });
+  }
+  finally {
+    setIsLoading(false);
+  }
+};
   
   {/* Fetch data on load */}
   useEffect(() => {
@@ -64,9 +66,8 @@ const ManualTopic = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/manual-topic', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await authFetch("/api/manual-topic", {
+        method: "POST",
         body: JSON.stringify({ topic: trimmedTopic })
       });
       if (!response.ok) throw new Error('Failed to submit topic');

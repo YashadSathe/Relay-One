@@ -2,13 +2,10 @@ from asyncio.log import logger
 import os
 import asyncio
 import logging
-import json
-from pickle import PicklingError
-import uuid
 from typing import Optional
 from datetime import datetime
 from database import db_manager
-from models import User
+from models import User, GeneratedPost
 from brand_brief_service import brand_brief_service
 from .topic_generator import get_topic
 from .post_generator import generate_post
@@ -29,48 +26,41 @@ class PipelineError(Exception):
     """Custom exception for pipeline-related errors"""
     pass
 
-def save_posts_to_storage(result):
+def save_post_to_db(user_id: str, result: dict) -> Optional[str]:
+    """
+    Saves the generated post result to the database for a specific user.
+    """
     try:
-        posts_file = os.path.join(DATA_DIR, "posts.json")
-        posts = []
-
-        if os.path.exists(posts_file) and os.path.getsize(posts_file) > 0:
-            try:
-                with open(posts_file, "r", encoding = "utf-8") as f:
-                    file_content = f.read().strip()
-                    if file_content:
-                        posts = json.loads(file_content)
-                        logging.info(f"Loaded {len(posts)} existing posts")
-            except (json.JSONDecodeError, Exception) as e:
-                logging.warning(f"Cloud not read existing files, starting frest {e}")
-                posts = []
-        else:
-            logging.info("No existing posts, starting fresh")
+        with db_manager.get_session() as session:
+            new_post = GeneratedPost(
+                user_id=user_id,
+                topic=result["topic"],
+                original_post=result["original_post"],
+                final_post=result["final_post"],
+                brand_brief_type=result["brief_type"],
+                score=result["score"],
+                feedback=result["feedback"],
+                reasoning=result["reasoning"],
+                generation_loops=result["loops"],
+                # Set defaults
+                is_approved=False,
+                is_published=False,
+            )
             
-        new_post = {
-            "id": str(uuid.uuid4()),
-            "content": result["final_post"],
-            "score": result["score"],
-            "topic": result["topic"],
-            "timestamp": datetime.now().isoformat(),
-            "original_post": result["original_post"],
-            "feedback": result["feedback"],
-            "loops": result["loops"]
-        }
-
-        posts.append(new_post)
-
-        # save to file
-        with open(posts_file, "w", encoding = "utf-8") as f:
-            json.dump(posts,f , indent = 2)
-        
-        logging.info(f"✅ Successfully saved post! Total posts now: {len(posts)}")
-        logging.info(f"📝 Post content preview: {result['final_post'][:100]}...")
-
-        return new_post["id"]
+            session.add(new_post)
+            session.commit()
+            
+            # We need the ID for logging, so refresh the object
+            session.refresh(new_post)
+            post_id = new_post.id
+            
+            logger.info(f"✅ Successfully saved post {post_id} to DB for user {user_id}.")
+            logger.info(f"📝 Post content preview: {result['final_post'][:100]}...")
+            
+            return post_id
 
     except Exception as e:
-        logging.error(f"Failed to save story to storage {e}")
+        logging.error(f"Failed to save post to database for user {user_id}: {e}")
         return None
 
 async def run_pipeline(user_id: str, manual_topic: Optional[str] = None, brief_type: str = "active"):
@@ -124,8 +114,14 @@ async def run_pipeline(user_id: str, manual_topic: Optional[str] = None, brief_t
             "loops": loops,
         }
 
-        post_id = save_posts_to_storage(result)
+        post_id = save_post_to_db(result)
 
+        if not post_id:
+            # Handle failure to save to DB
+            return {"status": "error", "message": "Failed to save post to database."}
+
+        # Add the new post_id to the result for integration
+        result["post_id"] = post_id
         final_post = result["final_post"]
 
         logging.info("Saving result to Notion.")
@@ -151,5 +147,5 @@ async def run_pipeline(user_id: str, manual_topic: Optional[str] = None, brief_t
             return {"status": "failure", "message": "Post not up to mark. Try again!"}
     
     except Exception as e:
-        logging.exception(f"Unhandled error in pipeline: {e}")
+        logging.exception(f"Unhandled error in pipeline for user {user_id}: {e}")
         return {"status": "error", "message": "Pipeline crashed unexpectedly"}

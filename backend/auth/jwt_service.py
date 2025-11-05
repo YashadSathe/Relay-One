@@ -6,6 +6,9 @@ from functools import wraps
 from flask import request, g, jsonify
 import logging
 
+from dotenv import load_dotenv
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 class JWTService:

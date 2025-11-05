@@ -12,3 +12,4 @@ apscheduler
 sqlalchemy
 bcrypt
 pyJWT
+Flask-JWT-Extended

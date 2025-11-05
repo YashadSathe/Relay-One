@@ -11,6 +11,8 @@ from api.routes import register_routes
 from api.auth_routes import register_auth_routes
 from database import db_manager
 import models 
+from linkedin_ai.scheduler import scheduler, initialize_scheduler
+
 
 # Initialize Flask app
 app = Flask(__name__, 
@@ -64,13 +66,11 @@ if __name__ == '__main__':
     if debug:
         print("WARNING: Running in debug mode. Do not use in production.")
 
-    from linkedin_ai.scheduler import scheduler, refresh_scheduler
-
     print("Starting scheduler...")
     scheduler.start()
     
-    print("Initializing scheduler")
-    refresh_scheduler() 
+    print("Initializing scheduler jobs from database...")
+    initialize_scheduler(app)
 
     # USE 127.0.0.1 for loval dev and 0.0.0.0 for containers
     host = '127.0.0.1' if debug else '0.0.0.0'

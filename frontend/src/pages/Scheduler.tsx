@@ -9,6 +9,7 @@
   import { CalendarClock, Loader2, PlayCircle, PauseCircle } from "lucide-react";
   import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form";
   import { useForm } from "react-hook-form";
+  import { authFetch } from "@/lib/api";
 
   const Scheduler = () => {
     const [automationActive, setAutomationActive] = useState(false);
@@ -30,7 +31,7 @@
     useEffect(() => {
       const fetchConfig = async () => {
         try {
-          const res = await fetch("/api/scheduler/settings");
+          const res = await authFetch("/api/scheduler/settings");
           const data = await res.json();
         
           setAutomationActive(data.active);
@@ -52,7 +53,7 @@
       setIsSubmitting(true);
       
       try {
-        const res = await fetch("/api/scheduler/settings");
+        const res = await authFetch("/api/scheduler/settings");
         const current = await res.json();
 
         const updated = {
@@ -60,7 +61,7 @@
           active: !automationActive,
         };
         
-        const save = await fetch("/api/scheduler/settings", {
+        const save = await authFetch("/api/scheduler/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updated),
@@ -89,7 +90,7 @@
       setIsSubmitting(true);
       
       try {
-        const res = await fetch("/api/scheduler/settings");
+        const res = await authFetch("/api/scheduler/settings");
         const current = await res.json();
           
         const updated = {
@@ -98,7 +99,7 @@
           frequency: data.frequency,
         };
 
-    const save = await fetch("/api/scheduler/settings", {
+    const save = await authFetch("/api/scheduler/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updated),

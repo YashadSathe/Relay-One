@@ -5,97 +5,73 @@ import logging
 import threading
 import asyncio
 import traceback
-from flask import jsonify, request
+from flask import jsonify, request, g
+from auth.jwt_service import jwt_service
 from datetime import datetime 
 from linkedin_ai.pipeline import run_pipeline
+from database import db_manager
+from models import ManualTopic, User
 
 logger = logging.getLogger(__name__)
 
-TOPICS_DB_PATH = "manual_topics.json"
-db_lock = threading.Lock()
-
-def get_manual_topics_db():
-    with db_lock:
-        if not os.path.exists(TOPICS_DB_PATH):
-            return []
-        try:
-            with open(TOPICS_DB_PATH, "r", encoding = "utf-8") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            logger.warning(f"Corrupt JSON file: {TOPICS_DB_PATH}. Resetting.")
-            return []
-
-def run_pipeline_in_thread(topic: str, brand_brief: str = None):
-    logger.info(f"[Thread] Starting pipeline for manual topic: {topic}")
-    try:
-        asyncio.run(run_pipeline(brand_brief=brand_brief, manual_topic=topic))
-        logger.info(f"[Thread] Pipeline finished for manual topic: {topic}")
-    except Exception as e:
-        logger.error(f"[Thread] Error in pipeline thread: {e}")
-        logger.error(traceback.format_exc()) # Full error
-
-def save_manual_topics_db(topics):
-    with db_lock:
-        with open(TOPICS_DB_PATH, "w", encoding="utf-8") as f:
-            json.dump(topics, f, indent=2)
-
 def register_manual_topic_routes(app):
   
-    @app.route('/api/manual-topic/health', methods=['GET'])
-    def health_check():
-        """Health check endpoint."""
-        return jsonify({'status': 'healthy', 'message': 'LinkedIn AI API is running'})
-
     @app.route('/api/manual-topics', methods=['GET'])
-    def get_manual_topics():
-        """
-        Handles GET requests to fetch the recent topics, frontend's useEffect will call.
-        """
-        all_topics = get_manual_topics_db()
-        # Return the 5 most recent topics
-        return jsonify(all_topics[:5])
-
+    @jwt_service.require_auth
+    def get_topics():
+        user_id = g.user_id
+        try:
+            with db_manager.get_session() as session:
+                # Fetch topics for the user, order by newest first
+                topics = session.query(ManualTopic)\
+                    .filter(ManualTopic.user_id == user_id)\
+                    .order_by(ManualTopic.created_at.desc())\
+                    .all()
+                
+                # Convert to list of dictionaries
+                topics_list = [topic.to_dict() for topic in topics]
+                
+                return jsonify({'topics': topics_list})
+        except Exception as e:
+            logger.error(f"Error fetching manual topics for user {user_id}: {e}")
+            return jsonify({'error': 'Failed to fetch topics'}), 500
 
     @app.route('/api/manual-topic', methods=['POST'])
-    def submit_manual_topic():
-        """
-        Handles POST requests to submit a new topic.
-        This saves the topic AND runs the pipeline.
-        """
+    @jwt_service.require_auth
+    def run_manual_pipeline():
+        user_id = g.user_id
         data = request.json
-        topic = data.get('topic', '').strip() if data else ''
-        brand_brief = data.get("brand", '').strip() if data else ''
+        topic = data.get('topic')
+        brief_type = data.get('brief_type', 'active') # 'active', 'personal', or 'company'
 
         if not topic:
-            return jsonify({'success': False, 'error': 'Missing or empty topic'}), 400
+            return jsonify({"error": "Topic is required"}), 400
 
-        # 1. Create the new topic object
-        new_topic = {
-            "id": str(uuid.uuid4()),
-            "topic": topic,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M") 
-        }
+        try:
+            with db_manager.get_session() as session:
+                # SAVE THE TOPIC TO THE DATABASE
+                exists = session.query(ManualTopic)\
+                    .filter(ManualTopic.user_id == user_id, ManualTopic.topic == topic)\
+                    .first()
+                
+                if not exists:
+                    new_topic = ManualTopic(user_id=user_id, topic=topic)
+                    session.add(new_topic)
+                    session.commit()
+                    logger.info(f"Saved new manual topic for user {user_id}")
 
-        # 2. Save to our "database"
-        all_topics = get_manual_topics_db()
-        all_topics.insert(0, new_topic) # Add to the front
-        
-        # Trim the list to only keep 5
-        trimmed_topics = all_topics[:5]
-        
-        save_manual_topics_db(trimmed_topics)
+            
+            logger.info(f"Running manual pipeline for user {user_id} with topic: {topic[:50]}...")
+            
+            result = asyncio.run(run_pipeline(user_id=user_id, manual_topic=topic, brief_type=brief_type))
+            
+            logger.info(f"Manual pipeline run finished for user {user_id} with status: {result.get('status')}")
+            
+            if result.get("status") == "success":
+                return jsonify({"success": True, "message": result.get("message")}), 200
+            else:
+                return jsonify({"success": False, "error": result.get("message")}), 500
 
-        # 3. Start the AI pipeline in the background
-        thread = threading.Thread(
-            target=run_pipeline_in_thread, 
-            args=(topic, brand_brief) # Pass both topic and brief
-        )
-        thread.daemon = True
-        thread.start()
-
-        # 4. Return success
-        return jsonify({
-            'success': True, 
-            'message': f'Pipeline started for topic: {topic}',
-            'new_topic': new_topic # Send the new topic back
-        }), 201
+        except Exception as e:
+            logger.exception(f"Unhandled error in manual pipeline run for user {user_id}: {e}")
+            return jsonify({"error": "Pipeline crashed unexpectedly"}), 500

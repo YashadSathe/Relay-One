@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey, Integer, Float, Index
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import bcrypt
@@ -34,6 +34,11 @@ class User(Base):
     # Which brand brief to use for generation (default: personal)
     active_brand_brief = Column(String(20), default="personal")  # "personal" or "company"
 
+    # Scheduler
+    scheduler_active = Column(Boolean, default=False, nullable=False)
+    scheduler_time = Column(String(5), default="09:00", nullable=False)
+    scheduler_frequency = Column(String(20), default="daily", nullable=False)
+
     # Auth & Status
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
@@ -46,6 +51,7 @@ class User(Base):
     # Relationships
     posts = relationship("GeneratedPost", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    manual_topics = relationship("ManualTopic", back_populates="user", cascade="all, delete-orphan", lazy="dynamic")
     
     # Hash and set password
     def set_password(self, password):
@@ -170,3 +176,24 @@ class GeneratedPost(Base):
     
     # Relationship
     user = relationship("User", back_populates="posts")
+
+class ManualTopic(Base):
+    __tablename__ = "manual_topics"
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    topic = Column(Text, nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationship
+    user = relationship("User", back_populates="manual_topics")
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'topic': self.topic,
+            'created_at': self.created_at.isoformat()
+        }
