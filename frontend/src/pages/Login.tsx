@@ -30,6 +30,8 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
+    console.log("1. [Login.tsx] Calling AuthContext login...");
+
     try {
       // Validation
       if (!formData.email || !formData.password) {

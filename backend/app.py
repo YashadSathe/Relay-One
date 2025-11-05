@@ -1,9 +1,9 @@
+from dotenv import load_dotenv
+load_dotenv()
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import os
 import logging
-from dotenv import load_dotenv
-load_dotenv()
 from api.Manual_topic_routes import register_manual_topic_routes
 from api.Scheduler_routes import register_scheduler_routes
 from api.brand_brief_routes import register_brand_brief_routes

@@ -114,7 +114,7 @@ async def run_pipeline(user_id: str, manual_topic: Optional[str] = None, brief_t
             "loops": loops,
         }
 
-        post_id = save_post_to_db(result)
+        post_id = save_post_to_db(user_id, result)
 
         if not post_id:
             # Handle failure to save to DB

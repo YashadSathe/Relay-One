@@ -6,9 +6,6 @@ from functools import wraps
 from flask import request, g, jsonify
 import logging
 
-from dotenv import load_dotenv
-load_dotenv()
-
 logger = logging.getLogger(__name__)
 
 class JWTService:
@@ -17,6 +14,14 @@ class JWTService:
         self.algorithm = 'HS256'
         self.access_token_expire_minutes = 60 * 24  # 24 hours
         self.refresh_token_expire_days = 30  # 30 days
+
+        # For DEBUGGING
+        print("--- JWT SERVICE INITIALIZED ---")
+        if self.secret_key == 'your-super-secret-key-change-in-production':
+            print("WARNING: Using default JWT secret key. .env file not loaded.")
+        else:
+            print(f"SUCCESS: JWT Service loaded with key from .env: ...{self.secret_key[-6:]}")
+        print("---------------------------------")
     
     def create_access_token(self, user_id: str, additional_claims: Dict = None) -> str:
         """Create JWT access token"""

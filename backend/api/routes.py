@@ -1,7 +1,7 @@
 import os
 import logging
-from flask import jsonify, request
-from flask_jwt_extended import jwt_required, get_jwt_identity 
+from flask import jsonify, request, g
+from auth.jwt_service import jwt_service 
 from database import db_manager 
 from models import GeneratedPost
 
@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 def register_routes(app):
     @app.route('/api/posts', methods=['GET'])
-    @jwt_required
+    @jwt_service.require_auth
     def get_posts():
         """Fetch all generated posts from storage."""
-        user_id = get_jwt_identity()
+        user_id = g.user_id
         
         try:
             with db_manager.get_session() as session:

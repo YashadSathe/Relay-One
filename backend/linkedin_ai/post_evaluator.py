@@ -4,47 +4,43 @@ import logging
 from .client import client
 
 async def evaluate_post(post: str, brand_brief: str, topic: str, brief_type: str = "personal") -> Tuple[int, str, str]:
-    prompt = f"""
-    You are a senior editorial reviewer at a top {brief_type.upper()} brand agency. Your job is to rigorously evaluate a draft LinkedIn post and provide a clear numeric score and highly actionable, specific feedback to help the writer reach a publish-ready standard.
+    prompt = f"""You are a senior editorial reviewer at a top {brief_type.upper()} brand agency. Your job is to rigorously evaluate a draft LinkedIn post and provide a clear numeric score and highly actionable, specific feedback to help the writer reach a publish-ready standard.
 
-    {brief_type.upper()} BRAND Brief: 
-    {brand_brief}
+{brief_type.upper()} BRAND Brief: 
+{brand_brief}
 
-    Evaluation Criteria (tailored for {brief_type} brand):
-    1. Clarity - Is the language readable, concise, and logically structured?
-    2. Brand Voice Alignment - Does the tone match the {brief_type} brand voice?
-    3. Audience Relevance - Is this appropriate for the target audience?
-    4. Content Goals - Does it achieve the brand's content objectives?
-    5. Professionalism - Is it credible and well-crafted?
-    6. Structure - Does the post follow a strong narrative: hook → value → close?
-    7. Originality - Is the content fresh, thought-provoking, and non-generic?
-    8. Engagement Potential - Would this post stop someone mid-scroll? Does it spark curiosity or emotion?
-    9. LinkedIn Fit - Is this post professional, relevant, and likely to perform well on LinkedIn?
+Evaluation Criteria (tailored for {brief_type} brand):
+1. Clarity - Is the language readable, concise, and logically structured?
+2. Brand Voice Alignment - Does the tone match the {brief_type} brand voice?
+3. Audience Relevance - Is this appropriate for the target audience?
+4. Content Goals - Does it achieve the brand's content objectives?
+5. Professionalism - Is it credible and well-crafted?
+6. Structure - Does the post follow a strong narrative: hook → value → close?
+7. Originality - Is the content fresh, thought-provoking, and non-generic?
+8. Engagement Potential - Would this post stop someone mid-scroll? Does it spark curiosity or emotion?
+9. LinkedIn Fit - Is this post professional, relevant, and likely to perform well on LinkedIn?
 
-    Scoring Rules:
-    Score the post strictly on a 1-10 scale:
-    - 9-10: Exceptional. Polished, original, and on-brand. Ready for publishing.
-    - 7-8: Decent. Has potential but needs refinement.
-    - 5-6: Lacking in clarity, voice, or depth. Requires major revisions.
-    - 1-4: Poor quality. Off-brand, vague, or uninspiring.
+Scoring Rules:
+Score the post strictly on a 1-10 scale:
+- 9-10: Exceptional. Polished, original, and on-brand. Ready for publishing.
+- 7-8: Decent. Has potential but needs refinement.
+- 5-6: Lacking in clarity, voice, or depth. Requires major revisions.
+- 1-4: Poor quality. Off-brand, vague, or uninspiring.
 
-    {"For PERSONAL brands, also consider: Authenticity, Personal connection, Individual perspective" if brief_type == "personal" else "For COMPANY brands, also consider: Professional credibility, Industry relevance, Business value"}
+Post to Evaluate:
+{post}
 
-    Post to Evaluate:
-    {post}
+Topic:
+{topic}
 
-    Topic:
-    {topic}
+Output a JSON object:
+{{
+  "score": 6,
+  "reasoning": "Explain your reasoning, referencing the {brief_type} brand criteria.",
+  "feedback": "Give specific, actionable feedback for improvement. Be direct and constructive. If the post is already publish-ready, say so."
+}}
 
-    Output a JSON object:
-    {{
-      "score": 6,
-      "reasoning": "Explain your reasoning, referencing the {brief_type} brand criteria.",
-      "feedback": "Give specific, actionable feedback for improvement. Be direct and constructive. If the post is already publish-ready, say so."
-    }}
-
-    DO NOT return strings like '6/10' or 'Score: 6'. Only return a clean numeric score.
-    """
+DO NOT return strings like '6/10' or 'Score: 6'. Only return a clean numeric score."""
     response = await client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}]
@@ -56,11 +52,11 @@ async def evaluate_post(post: str, brand_brief: str, topic: str, brief_type: str
         data = json.loads(lines)
         
         score = int(data.get("score", 0))
-        feedback = data.get("feedback", "No feedback provided.")
         reasoning = data.get("reasoning", "No reasoning provided.")
+        feedback = data.get("feedback", "No feedback provided.")
     
         return score, feedback, reasoning
     
     except Exception as e:
         logging.error("Failed to parse evaluation response as JSON.")
-        raise e
+        raise

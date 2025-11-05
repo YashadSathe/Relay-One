@@ -57,17 +57,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       authService.setTokens(response.access_token, response.refresh_token);
       setUser(response.user);
       
-      toast({
-        title: "Welcome back!",
-        description: "Login successful.",
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: error.message || "Invalid email or password.",
-      });
-      throw error;
     } finally {
       setIsLoading(false);
     }
