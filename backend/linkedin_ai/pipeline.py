@@ -34,7 +34,7 @@ def save_post_to_db(user_id: str, result: dict) -> Optional[str]:
         with db_manager.get_session() as session:
             new_post = GeneratedPost(
                 user_id=user_id,
-                topic=result["topic"],
+                topic=result["topic"]["topic"],
                 original_post=result["original_post"],
                 final_post=result["final_post"],
                 brand_brief_type=result["brief_type"],

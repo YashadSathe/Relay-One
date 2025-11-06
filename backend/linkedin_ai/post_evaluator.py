@@ -4,9 +4,9 @@ import logging
 from .client import client
 
 async def evaluate_post(post: str, brand_brief: str, topic: str, brief_type: str = "personal") -> Tuple[int, str, str]:
-    prompt = f"""You are a senior editorial reviewer at a top {brief_type.upper()} brand agency. Your job is to rigorously evaluate a draft LinkedIn post and provide a clear numeric score and highly actionable, specific feedback to help the writer reach a publish-ready standard.
+    prompt = f"""You are a senior editorial reviewer at a top {brief_type.lower()} brand agency. Your job is to rigorously evaluate a draft LinkedIn post and provide a clear numeric score and highly actionable, specific feedback to help the writer reach a publish-ready standard.
 
-{brief_type.upper()} BRAND Brief: 
+{brief_type.lower()} BRAND Brief: 
 {brand_brief}
 
 Evaluation Criteria (tailored for {brief_type} brand):
