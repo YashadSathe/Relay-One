@@ -9,7 +9,7 @@
   import { CalendarClock, Loader2, PlayCircle, PauseCircle } from "lucide-react";
   import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form";
   import { useForm } from "react-hook-form";
-  import { authFetch } from "@/lib/api";
+  import api from "@/lib/api";
 
   const Scheduler = () => {
     const [automationActive, setAutomationActive] = useState(false);
