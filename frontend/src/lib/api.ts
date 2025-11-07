@@ -1,19 +1,24 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+console.log("VITE_API_BASE_URL (from api.ts):", import.meta.env.VITE_API_BASE_URL);
 
-export const authFetch = async (url: string, options: RequestInit = {}) => { 
-    const token = localStorage.getItem("access_token");
+import axios from 'axios';
 
-    const headers = {
-    ...options.headers,
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${token}`
-  };
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
+  withCredentials: true,
+});
 
-  // Add a base URL if you have one, e.g., http://localhost:5000
-  const fullUrl = `${API_URL}${url.startsWith("/") ? url : `/${url}`}`;
+{/* attach token to every request */}
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token'); // Get token from local storage
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`; // Attach it as a Bearer token
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
-  return fetch(fullUrl, {
-    ...options,
-    headers: headers,
-  });
-};
+export default api;

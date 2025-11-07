@@ -13,3 +13,5 @@ sqlalchemy
 bcrypt
 pyJWT
 Flask-JWT-Extended
+gunicorn
+psycopg2-binary

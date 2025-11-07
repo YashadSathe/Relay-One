@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
+import os
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import os
@@ -20,14 +21,28 @@ app = Flask(__name__,
             template_folder='../dist')
 
 # Enable CORS for all routes
-CORS(app, origins=[
+
+FRONTEND_URL = os.environ.get('FRONTEND_URL')
+
+
+origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8081",
     "http://127.0.0.1:8081",
     "http://localhost:5173",
-    "http://127.0.0.1:5173", 
-])
+    "http://127.0.0.1:5173",
+]
+
+if FRONTEND_URL:
+    origins.append(FRONTEND_URL)
+
+CORS(app, 
+     origins = origins, 
+     supports_credentials=True
+)
+
+
 
 # Initialise database
 db_manager.init_db()
@@ -66,11 +81,11 @@ if __name__ == '__main__':
     if debug:
         print("WARNING: Running in debug mode. Do not use in production.")
 
-    print("Starting scheduler...")
-    scheduler.start()
+    # print("Starting scheduler...")
+    # scheduler.start()
     
-    print("Initializing scheduler jobs from database...")
-    initialize_scheduler(app)
+    # print("Initializing scheduler jobs from database...")
+    # initialize_scheduler(app)
 
     # USE 127.0.0.1 for loval dev and 0.0.0.0 for containers
     host = '127.0.0.1' if debug else '0.0.0.0'

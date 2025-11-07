@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
-import { authFetch } from "@/lib/api";
+import api from "@/lib/api";
 
 interface TopicSubmission {
   id: string;
@@ -24,13 +24,8 @@ const ManualTopic = () => {
   const fetchTopics = async () => {
   setIsLoading(true);
   try {
-    const response = await authFetch('/api/manual-topics'); 
-    if (!response.ok) {
-      throw new Error ('Failed to fetch topics')
-    }
-
-    const data = await response.json();
-    setRecentTopics(data.topics);
+    const response = await api.get('/api/manual-topics'); 
+    setRecentTopics(response.data.topics);
   }
   catch (error) {
     toast({
@@ -66,11 +61,9 @@ const ManualTopic = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await authFetch("/api/manual-topic", {
-        method: "POST",
-        body: JSON.stringify({ topic: trimmedTopic })
+       await api.post("/api/manual-topic", {
+        topic: trimmedTopic
       });
-      if (!response.ok) throw new Error('Failed to submit topic');
 
       await fetchTopics();
       

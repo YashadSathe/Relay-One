@@ -1,6 +1,4 @@
-import { useToast } from "@/components/ui/use-toast";
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import api from '@/lib/api';
 
 export interface User {
   id: string;
@@ -44,67 +42,54 @@ export interface SignupData {
 }
 
 class AuthService {
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
-
+  async login(loginData: LoginData): Promise<AuthResponse> {
     try {
-      const response = await fetch(url, config);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
-      }
-
-      return data;
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
+      const response = await api.post('/api/auth/login', loginData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw new Error(error.response?.data?.error || "Invalid credentials");
     }
   }
 
-  async login(loginData: LoginData): Promise<AuthResponse> {
-    return this.request('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(loginData),
-    });
-  }
-
   async signup(signupData: SignupData): Promise<AuthResponse> {
-    return this.request('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(signupData),
-    });
+    try {
+      const response = await api.post('/api/auth/register', signupData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      throw new Error(error.response?.data?.error || "Error signing up");
+    }
   }
 
   async getCurrentUser(token: string): Promise<{ user: User }> {
-    return this.request('/api/auth/me', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    try {
+      const response = await api.get('/api/auth/me');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get current user error:', error);
+      throw new Error(error.response?.data?.error || "Could not fetch user");
+    }
   }
 
   async refreshToken(refreshToken: string): Promise<{ access_token: string }> {
-    return this.request('/api/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
+    try {
+      const response = await api.post('/api/auth/refresh', { refresh_token: refreshToken });
+      return response.data;
+    } catch (error: any) {
+      console.error('Token refresh error:', error);
+      throw new Error(error.response?.data?.error || "Could not refresh token");
+    }
   }
 
   async logout(token: string): Promise<{ message: string }> {
-    return this.request('/api/auth/logout', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    try {
+      const response = await api.post('/api/auth/logout');
+      return response.data;
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      throw new Error(error.response?.data?.error || "Logout failed");
+    }
   }
 
   // Token management

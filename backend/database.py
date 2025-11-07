@@ -14,21 +14,39 @@ class DatabaseManager:
         self.SessionLocal = None
         
     def init_db(self, database_url: str = None):
-        """Initialize SQLite database - works immediately with no setup"""
-        if not database_url:
+        """Initialize database - reads from env or uses SQLite"""
+        
+        # NEW: Check environment for a production database URL
+        prod_db_url = os.environ.get('DATABASE_URL')
+        
+        if prod_db_url:
+            database_url = prod_db_url
+            # Fix for Render's Postgres URL
+            if database_url.startswith("postgres://"):
+                 database_url = database_url.replace("postgres://", "postgresql://", 1)
+        
+        elif not database_url:
             # ✅ Use SQLite - creates a file in your current directory
             database_url = "sqlite:///./Relay-One.db"
         
-        logger.info(f"🔧 Setting up SQLite database: {database_url}")
+        logger.info(f"🔧 Setting up database: {database_url}")
         
-        # SQLite configuration (simple and works immediately)
+        # Check if this is a SQLite database for specific args
+        if database_url.startswith("sqlite"):
+            connect_args = {"check_same_thread": False}
+            poolclass = StaticPool
+        else:
+            # Production (Postgres) config
+            connect_args = {}
+            poolclass = None # Use default pool
+
         self.engine = create_engine(
             database_url,
-            connect_args={"check_same_thread": False},  # Required for SQLite
-            poolclass=StaticPool,  # Simple connection pool
+            connect_args=connect_args,
+            poolclass=poolclass,
             echo=True  # Show SQL queries in logs (helpful for debugging)
         )
-        
+
         self.SessionLocal = sessionmaker(
             autocommit=False, 
             autoflush=False, 
