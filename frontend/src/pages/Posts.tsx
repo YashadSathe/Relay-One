@@ -1,27 +1,11 @@
 import { useState, useEffect } from "react";
 import { FileText, RefreshCw, ArrowDown, ArrowUp, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import {HoverCard,HoverCardContent,HoverCardTrigger,} from "@/components/ui/hover-card";
 import { toast } from "@/hooks/use-toast";
 import { 
   Pagination, 
@@ -31,7 +15,7 @@ import {
   PaginationNext, 
   PaginationPrevious 
 } from "@/components/ui/pagination";
-
+import api from "@/lib/api";
 interface Post {
   id: string;
   content: string;
@@ -47,26 +31,25 @@ const Posts = () => {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
 
-  // Fetch posts from backend
   const fetchPosts = async () => {
     try {
       setIsFetching(true);
-      const response = await fetch('/api/posts');
-      const data = await response.json();
+      const response = await api.get('/api/posts');
+      const data = await response.data;
+      setPosts(data.posts || []);
       
-      if (response.ok) {
-        setPosts(data.posts || []);
-      } else {
-        toast({
-          title: "Error Fetching Posts",
-          description: data.error || "Failed to load posts",
-          variant: "destructive",
-        });
+      } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || "Failed to load posts";
+      let title = "Error Fetching Posts";
+
+      if (error.response?.status === 401) {
+        title = "Authentication Error";
+      } else if (!error.response) {
+        title = "Network Error";
       }
-    } catch (error) {
       toast({
-        title: "Network Error",
-        description: "Could not connect to server",
+        title: title,
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {

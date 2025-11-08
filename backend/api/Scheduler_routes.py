@@ -2,7 +2,6 @@ from flask import request, jsonify,g
 import logging
 from datetime import datetime
 from auth.jwt_service import jwt_service
-from linkedin_ai.scheduler import scheduler, update_user_job
 from database import db_manager
 from models import User
 
@@ -15,7 +14,7 @@ def register_scheduler_routes(app):
     @app.route("/api/scheduler/settings", methods=["GET"])
     @jwt_service.require_auth
     def get_settings():
-        # Gets the scheduler settings for the authenticated user.
+        # Get scheduler of user.
         user_id = g.user_id
         try:
             with db_manager.get_session() as session:
@@ -77,9 +76,6 @@ def register_scheduler_routes(app):
                 
                 session.commit()
             
-            # Update Scheduler 
-            update_user_job(user_id, active, time_str, frequency)
-
             return jsonify({"success": True, "message": "Scheduler updated successfully."})
         
         except ValueError as ve:
@@ -87,16 +83,3 @@ def register_scheduler_routes(app):
         except Exception as e:
             logger.error(f"Error updating scheduler settings for user {user_id}: {e}")
             return jsonify({"success": False, "error": "Internal server error"}), 500
-
-    @app.route("/api/scheduler/health", methods=["GET"])
-    def scheduler_health():
-        # used by admin to see the total number of jobs.
-        jobs = scheduler.get_jobs()
-        return jsonify({
-            "status": "running" if scheduler.running else "stopped",
-            "job_count": len(jobs),
-            "jobs": [
-                {"id": job.id, "next_run": str(job.next_run_time)}
-                for job in jobs
-            ]
-        })

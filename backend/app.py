@@ -11,14 +11,18 @@ from api.brand_brief_routes import register_brand_brief_routes
 from api.routes import register_routes
 from api.auth_routes import register_auth_routes
 from database import db_manager
-import models 
-from linkedin_ai.scheduler import scheduler, initialize_scheduler
+import models
 
 
 # Initialize Flask app
 app = Flask(__name__, 
             static_folder='../dist',
             template_folder='../dist')
+
+@app.route("/", methods=["GET"])
+def health_check():
+    # Health check route to satisfy Render's health checks.
+    return jsonify({"status": "healthy", "message": "Relay-One backend is running."}), 200
 
 # Enable CORS for all routes
 
