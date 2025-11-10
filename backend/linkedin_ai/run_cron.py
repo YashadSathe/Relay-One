@@ -3,39 +3,27 @@ import traceback
 from datetime import datetime, timezone, time
 import asyncio
 from dotenv import load_dotenv
-
-# Load .env variables first
 load_dotenv()
-
-from app import app  # Import the app to provide context
+from app import app
 from database import db_manager
-from models import User, GeneratedPost # Import GeneratedPost
+from models import User, GeneratedPost 
 from linkedin_ai.pipeline import run_pipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 def is_due(session, user: User, now_utc: datetime) -> bool:
-    """
-    Checks if a user's job is due to run, allowing for a 10-minute
-    delay window and checking if a post was already made today.
-    """
     try:
-        # --- 1. Check Frequency ---
         frequency = user.scheduler_frequency.lower()
-        weekday = now_utc.weekday()  # Monday is 0, Sunday is 6
-
+        weekday = now_utc.weekday() 
         if frequency == "weekdays" and weekday >= 5: # It's Sat or Sun
             return False
-        if frequency == "alternate" and now_utc.day % 2 == 0: # It's an even day
+        if frequency == "alternate" and now_utc.day % 2 == 0:
             return False
-        # "daily" always runs, so no check needed.
 
-        # --- 2. Check Time Window (The Fix) ---
         try:
-            # Parse the "HH:MM" string from the DB
             scheduled_time = time.fromisoformat(user.scheduler_time)
-            # Combine with today's date in UTC
+            
             scheduled_dt = now_utc.replace(
                 hour=scheduled_time.hour, 
                 minute=scheduled_time.minute, 
@@ -49,21 +37,16 @@ def is_due(session, user: User, now_utc: datetime) -> bool:
         time_since_scheduled = now_utc - scheduled_dt
         seconds_passed = time_since_scheduled.total_seconds()
 
-        # --- !!! NEW DEBUG LOGS !!! ---
-        logger.info(f"[DEBUG User: {user.id}] DB Time (raw): '{user.scheduler_time}'")
+        # DEBUG LOGG
+        logger.info(f"[DEBUG User: {user.id}] DB Time (raw UTC): '{user.scheduler_time}'")
         logger.info(f"[DEBUG User: {user.id}] Server Time (UTC): {now_utc.strftime('%H:%M:%S')}")
         logger.info(f"[DEBUG User: {user.id}] Parsed DB Time (UTC): {scheduled_dt.strftime('%H:%M:%S')}")
         logger.info(f"[DEBUG User: {user.id}] Seconds Passed: {seconds_passed}")
-        # --- !!! END NEW DEBUG LOGS !!! ---
 
-        # Check if it's within our 10-minute window (600 seconds)
-        # 0 <= seconds_passed < 600
-        # This means the scheduled time is in the past, but not more than 10 mins ago.
         if not (0 <= seconds_passed < 600):
             return False
 
-        # --- 3. Check for Existing Post (Prevent Double-Runs) ---
-        # Find the start of today in UTC
+        # --- 3. Check for Existing Post
         today_utc_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         
         existing_post = session.query(GeneratedPost).filter(
@@ -71,12 +54,10 @@ def is_due(session, user: User, now_utc: datetime) -> bool:
             GeneratedPost.created_at >= today_utc_start
         ).first()
 
-        if existing_post:
-            # We already posted for this user today. Do not run again.
-            logger.info(f"Skipping user {user.id}: Post already generated today at {existing_post.created_at}")
-            return False
+        # if existing_post:
+        #     logger.info(f"Skipping user {user.id}: Post already generated today at {existing_post.created_at}")
+        #     return False
             
-        # If all checks pass, the user is due
         return True
         
     except Exception as e:
@@ -84,20 +65,14 @@ def is_due(session, user: User, now_utc: datetime) -> bool:
         return False
 
 async def run_pipeline_with_context(user_id: str):
-    """
-    Wrapper to run the async pipeline within its own app_context.
-    """
     try:
         with app.app_context():
             await run_pipeline(user_id=user_id, manual_topic=None)
     except Exception as e:
-        logger.error(f"Error during run_pipeline_with_context for user {user.id}: {e}")
+        logger.error(f"Error during run_pipeline_with_context for user {user_id}: {e}")
         raise e
 
 async def run_jobs():
-    """
-    Main async function to find and run all due jobs.
-    """
     logger.info("Cron job started: Checking for due users...")
     now_utc = datetime.now(timezone.utc)
     
@@ -116,7 +91,7 @@ async def run_jobs():
                 logger.info(f"Checking {len(active_users)} active users at {now_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC...")
                 
                 for user in active_users:
-                    # Pass the session to the 'is_due' check
+                    # Pass the session to the is due check
                     if is_due(session, user, now_utc):
                         logger.info(f"User {user.id} is due. Adding to task queue.")
                         tasks_to_run.append(run_pipeline_with_context(user_id=user.id))

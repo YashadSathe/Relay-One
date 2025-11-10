@@ -63,7 +63,7 @@ const Posts = () => {
 
   // Format date string
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = new Date(dateString + "Z");
     return date.toLocaleString("en-US", {
       month: "short",
       day: "numeric",

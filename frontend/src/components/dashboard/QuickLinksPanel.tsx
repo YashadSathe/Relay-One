@@ -1,9 +1,11 @@
 
-import React from "react";
+import React, { useState, useRef, ChangeEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { FileText, Database, Terminal, Github, MessageSquare, FileBarChart } from "lucide-react";
+import { FileText, Database, Terminal, Github, FileBarChart, UploadCloud, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import api from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface QuickLinkProps {
   icon: React.ReactNode;
@@ -38,7 +40,92 @@ const QuickLink: React.FC<QuickLinkProps> = ({ icon, label, description, href })
   );
 };
 
+interface QuickLinkUploadProps {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  id: string;
+  isLoading: boolean;
+  disabled: boolean;
+}
+
+const QuickLinkUpload: React.FC<QuickLinkUploadProps> = ({ 
+  icon, 
+  label, 
+  description, 
+  id,
+  isLoading,
+  disabled 
+}) => {
+  return (
+    <HoverCard openDelay={300} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <label
+          htmlFor={id}
+          className={cn(
+            "flex flex-col items-center justify-center h-32 rounded-lg bg-secondary/30 border border-border/40 p-4 transition-all duration-300",
+            disabled 
+              ? "cursor-not-allowed opacity-50" 
+              : "hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 hover:bg-secondary/40 cursor-pointer"
+          )}
+        >
+          <div className="size-12 flex items-center justify-center bg-primary/10 rounded-full mb-3 text-primary">
+            {isLoading ? <Loader2 className="size-5 animate-spin" /> : icon}
+          </div>
+          <span className="text-sm font-medium text-center line-clamp-2">{label}</span>
+        </label>
+      </HoverCardTrigger>
+      <HoverCardContent className="w-72 text-sm">
+        <div className="space-y-2">
+          <h4 className="font-medium">{label}</h4>
+          <p className="text-muted-foreground">{description}</p>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  );
+};
+
 const QuickLinksPanel: React.FC = () => {
+  const { toast } = useToast();
+  const [isUploading, setIsUploading] = useState(false);
+  const personalBriefInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePersonalBriefUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    setIsUploading(true);
+
+    try {
+      const response = await api.post('/api/brand-briefs/personal/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      toast({
+        title: "Upload Successful",
+        description: response.data.message || "Personal brand brief uploaded.",
+      });
+
+    } catch (error: any) {
+      console.error("Upload failed:", error);
+      toast({
+        title: "Upload Failed",
+        description: error.response?.data?.error || "An unknown error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      if (personalBriefInputRef.current) {
+        personalBriefInputRef.current.value = "";
+      }
+    }
+  };
   const quickLinks: QuickLinkProps[] = [
     {
       icon: <FileText className="size-5" />,
@@ -65,12 +152,6 @@ const QuickLinksPanel: React.FC = () => {
       href: "https://github.com/your-organization/your-repo"
     },
     {
-      icon: <MessageSquare className="size-5" />,
-      label: "Support Discord",
-      description: "Join our Discord community for support and discussions.",
-      href: "https://discord.gg/your-invite"
-    },
-    {
       icon: <FileBarChart className="size-5" />,
       label: "Feature Roadmap",
       description: "See what features and improvements are planned for RelayOne.",
@@ -94,6 +175,23 @@ const QuickLinksPanel: React.FC = () => {
               href={link.href}
             />
           ))}
+          <QuickLinkUpload
+            id="personal-brief-upload"
+            icon={<UploadCloud className="size-5" />}
+            label={isUploading ? "Uploading..." : "Upload Personal Brief"}
+            description="Upload a .txt or .doc file for your personal brand brief."
+            isLoading={isUploading}
+            disabled={isUploading}
+          />
+          <input
+            type="file"
+            id="personal-brief-upload"
+            ref={personalBriefInputRef}
+            onChange={handlePersonalBriefUpload}
+            className="hidden"
+            accept=".txt,text/plain,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            disabled={isUploading}
+          />
         </div>
       </CardContent>
     </Card>
