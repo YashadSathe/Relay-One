@@ -6,7 +6,6 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import bcrypt
 
-
 Base = declarative_base()
 
 def generate_uuid():
@@ -154,8 +153,10 @@ class GeneratedPost(Base):
     topic = Column(Text, nullable=False)
     original_post = Column(Text, nullable=False)
     final_post = Column(Text, nullable=False)
+
+    punchline = Column(Text, nullable = True)
     
-    # ✅ Track which brand brief was used
+    # Track which brand brief was used
     brand_brief_type = Column(String(20), default="personal")  # "personal" or "company"
     
     # Evaluation

@@ -11,6 +11,7 @@ from .topic_generator import get_topic
 from .post_generator import generate_post
 from .post_evaluator import evaluate_post
 from .post_rewriter import rewrite_post
+from .punchline_generator import generate_punchline
 from .integration import send_to_make, save_to_notion
 
 BASE_DIR = os.path.dirname(__file__)
@@ -37,6 +38,7 @@ def save_post_to_db(user_id: str, result: dict) -> Optional[str]:
                 topic=result["topic"]["topic"],
                 original_post=result["original_post"],
                 final_post=result["final_post"],
+                punchline=result.get("punchline"),
                 brand_brief_type=result["brief_type"],
                 score=result["score"],
                 feedback=result["feedback"],
@@ -103,10 +105,15 @@ async def run_pipeline(user_id: str, manual_topic: Optional[str] = None, brief_t
             logging.info(f"Re-evaluation score: {score}, feedback: {feedback}")
             loops += 1
 
+        logging.info("generating punchline")
+        punchline = await generate_punchline(post)
+        logging.info(f"punchline generated: {punchline}")
+
         result = {
             "topic": topic,
             "original_post": original_post,
             "final_post": post,
+            "punchline": punchline,
             "brief_type": brief_type,
             "score": score,
             "feedback": feedback,

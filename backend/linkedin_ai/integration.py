@@ -69,6 +69,7 @@ async def save_to_notion(result: dict, is_manual: bool = False):
             "Topic": {"title": [{"text": {"content": topic}}]},
             "Original Post": {"rich_text": [{"text": {"content": result.get('original_post', '')[:2000]}}]},
             "Final Post": {"rich_text": [{"text": {"content": result.get('final_post', '')[:2000]}}]},
+            "Punchline": {"rich_text": [{"text": {"content": result.get('punchline', '')[:2000]}}]},
             "Score": {"number": score},
             "Feedback": {"rich_text": [{"text": {"content": result.get('feedback', '')[:2000]}}]},
             "Loops": {"number": result.get("loops", 0)},
